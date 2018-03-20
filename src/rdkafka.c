@@ -1356,6 +1356,41 @@ rd_kafka_t *rd_kafka_new (rd_kafka_type_t type, rd_kafka_conf_t *app_conf,
         }
 #endif
 
+        if (type == RD_KAFKA_CONSUMER) {
+                /* Verify receive sizes */
+                if (conf->fetch_max_bytes < conf->max_msg_size) {
+                        rd_snprintf(errstr, errstr_size,
+                                    "'fetch.max.bytes' (%d) must be equal to "
+                                    "or larger than 'message.max.bytes' (%d): "
+                                    "see CONFIGURATION.md for more "
+                                    "information.",
+                                    conf->fetch_max_bytes,
+                                    conf->max_msg_size);
+                        if (!app_conf)
+                                rd_kafka_conf_destroy(conf);
+                        rd_kafka_set_last_error(RD_KAFKA_RESP_ERR__INVALID_ARG,
+                                                EINVAL);
+                        return NULL;
+                }
+
+                if (conf->recv_max_msg_size < conf->fetch_max_bytes + 512) {
+                        rd_snprintf(errstr, errstr_size,
+                                    "'receive.message.max.bytes' (%d) "
+                                    "must equal to or larger than "
+                                    "'fetch.max.bytes' (%d) + 512 = %d: "
+                                    "see CONFIGURATION.md and KIP-74 "
+                                    "for more information.",
+                                    conf->recv_max_msg_size,
+                                    conf->fetch_max_bytes,
+                                    conf->fetch_max_bytes + 512);
+                        if (!app_conf)
+                                rd_kafka_conf_destroy(conf);
+                        rd_kafka_set_last_error(RD_KAFKA_RESP_ERR__INVALID_ARG,
+                                                EINVAL);
+                        return NULL;
+                }
+        }
+
         if (conf->metadata_max_age_ms == -1) {
                 if (conf->metadata_refresh_interval_ms > 0)
                         conf->metadata_max_age_ms =

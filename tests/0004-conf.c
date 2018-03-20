@@ -216,6 +216,63 @@ static void do_test_special_invalid_conf (void) {
         rd_kafka_conf_destroy(conf);
 }
 
+static void do_test_consumer_recv_conf (void) {
+        rd_kafka_conf_t *conf;
+        rd_kafka_t *rk;
+        char errstr[512];
+
+        /*
+         * Invalid config: fetch.max.bytes > receive.message.max.bytes
+         */
+        conf = rd_kafka_conf_new();
+        test_conf_set(conf, "fetch.max.bytes", "10000000");
+        test_conf_set(conf, "receive.message.max.bytes", "1000000");
+
+        rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf, errstr, sizeof(errstr));
+        TEST_ASSERT(!rk, "expected kafka_new to fail");
+
+        TEST_ASSERT(strstr(errstr, "receive.message.max.bytes") &&
+                    strstr(errstr, "fetch.max.bytes") &&
+                    strstr(errstr, "larger"),
+                    "expected consumer receive size error, not %s", errstr);
+        TEST_SAY(_C_GRN "Ok: %s\n" _C_CLR, errstr);
+
+        /* Correct the config */
+        test_conf_set(conf, "receive.message.max.bytes", "10000512");
+
+        rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf, errstr, sizeof(errstr));
+        TEST_ASSERT(rk != NULL, "expected kafka_new to succeed, not %s",
+                    errstr);
+
+        rd_kafka_destroy(rk);
+
+        /*
+         * Invalid config: fetch.max.bytes < message.max.bytes
+         */
+        conf = rd_kafka_conf_new();
+        test_conf_set(conf, "fetch.max.bytes", "1000");
+        test_conf_set(conf, "message.max.bytes", "1001");
+
+        rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf, errstr, sizeof(errstr));
+        TEST_ASSERT(!rk, "expected kafka_new to fail");
+
+        TEST_ASSERT(strstr(errstr, "fetch.max.bytes") &&
+                    strstr(errstr, "message.max.bytes") &&
+                    strstr(errstr, "larger"),
+                    "expected consumer receive size error, not %s", errstr);
+        TEST_SAY(_C_GRN "Ok: %s\n" _C_CLR, errstr);
+
+        /* Correct the config */
+        test_conf_set(conf, "fetch.max.bytes", "1012");
+
+        rk = rd_kafka_new(RD_KAFKA_CONSUMER, conf, errstr, sizeof(errstr));
+        TEST_ASSERT(rk != NULL, "expected kafka_new to succeed, not %s",
+                    errstr);
+
+        rd_kafka_destroy(rk);
+
+}
+
 
 int main_0004_conf (int argc, char **argv) {
 	rd_kafka_t *rk;
@@ -469,6 +526,8 @@ int main_0004_conf (int argc, char **argv) {
         do_test_kafka_new_failures();
 
         do_test_special_invalid_conf();
+
+        do_test_consumer_recv_conf();
 
 	return 0;
 }

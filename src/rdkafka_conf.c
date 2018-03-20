@@ -191,11 +191,11 @@ static const struct rd_kafka_property rd_kafka_properties[] = {
 	  0, 1000000000, 0xffff },
 	{ _RK_GLOBAL, "receive.message.max.bytes", _RK_C_INT,
           _RK(recv_max_msg_size),
-	  "Maximum Kafka protocol response message size. "
-	  "This is a safety precaution to avoid memory exhaustion in case of "
-	  "protocol hickups. "
-          "The value should be at least fetch.message.max.bytes * number of "
-          "partitions consumed from + messaging overhead (e.g. 200000 bytes).",
+          "Maximum Kafka protocol response message size. "
+          "This serves as a safety precaution to avoid memory exhaustion in "
+          "case of protocol hickups. "
+          "The value must be at least `fetch.max.bytes` + 512 bytes to allow "
+          "for protocol overhead.",
 	  1000, 1000000000, 100000000 },
 	{ _RK_GLOBAL, "max.in.flight.requests.per.connection", _RK_C_INT,
 	  _RK(max_inflight),
@@ -661,6 +661,20 @@ static const struct rd_kafka_property rd_kafka_properties[] = {
           1, 1000000000, 1024*1024 },
 	{ _RK_GLOBAL|_RK_CONSUMER, "max.partition.fetch.bytes", _RK_C_ALIAS,
 	  .sdef = "fetch.message.max.bytes" },
+        { _RK_GLOBAL|_RK_CONSUMER, "fetch.max.bytes", _RK_C_INT,
+          _RK(fetch_max_bytes),
+          "Maximum amount of data the broker shall return for a Fetch request. "
+          "Messages are fetched in batches by the consumer and if the first "
+          "message batch in the first non-empty partition of the Fetch request "
+          "is larger than this value, then the message batch will still be "
+          "returned to ensure the consumer can make progress. "
+          "The maximum message batch size accepted by the broker is defined "
+          "via `message.max.bytes` (broker config) or "
+          "`max.message.bytes` (broker topic config). "
+          "**NOTE**: `fetch.max.bytes` must be equal to or higher than "
+          "`message.max.bytes`, and `receive.message.max.bytes` must be equal "
+          "to or higher than `fetch.max.bytes` + 512.",
+          0, INT_MAX, 50*1024*1024 /* 50MB */ },
 	{ _RK_GLOBAL|_RK_CONSUMER, "fetch.min.bytes", _RK_C_INT,
 	  _RK(fetch_min_bytes),
 	  "Minimum number of bytes the broker responds with. "
